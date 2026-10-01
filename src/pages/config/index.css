@@ -1,0 +1,13 @@
+.page { padding: 30px; min-height: 100vh; background: #12151d; }
+.title { display: block; font-size: 40px; color: #ffd88a; font-weight: bold; margin-bottom: 24px; }
+.sec { display: block; color: #7fb1ff; font-size: 28px; font-weight: bold; margin: 30px 0 12px; }
+.cfg-list { display: flex; flex-direction: column; gap: 10px; }
+.cfg-row { display: flex; align-items: center; background: #1e2330; border-radius: 12px; padding: 18px 24px; gap: 16px; }
+.cfg-label { flex: 1; color: #ccc; font-size: 26px; }
+.cfg-input { width: 120px; color: #ffd88a; font-size: 30px; text-align: center; background: #262b38; border-radius: 8px; padding: 8px; }
+.cfg-unit { color: #8a90a0; font-size: 24px; }
+.board-mini-list { display: flex; flex-direction: column; gap: 10px; }
+.board-mini { background: #1e2330; border-radius: 12px; padding: 16px 20px; }
+.b-name { display: block; color: #eee; font-size: 26px; font-weight: bold; }
+.b-meta { display: block; color: #8a90a0; font-size: 22px; margin-top: 6px; }
+.note { display: block; color: #556; font-size: 22px; margin-top: 30px; }

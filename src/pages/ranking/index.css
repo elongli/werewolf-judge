@@ -1,0 +1,9 @@
+.page { padding: 30px; min-height: 100vh; background: #12151d; }
+.title { display: block; font-size: 40px; color: #ffd88a; font-weight: bold; margin-bottom: 24px; }
+.empty { color: #556; font-size: 26px; }
+.rank-list { display: flex; flex-direction: column; gap: 10px; }
+.rank-row { display: flex; align-items: center; background: #1e2330; border-radius: 12px; padding: 20px; }
+.rank-row.top1 { background: #3a2f1a; }
+.rank-no { width: 70px; color: #8a90a0; font-size: 30px; }
+.rank-name { flex: 1; color: #eee; font-size: 30px; }
+.rank-score { color: #7fe28a; font-size: 32px; font-weight: bold; }

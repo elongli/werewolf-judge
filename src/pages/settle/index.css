@@ -1,0 +1,18 @@
+.page.settle { padding: 30px; min-height: 100vh; background: #12151d; }
+.announce { display: block; font-size: 48px; color: #ffd88a; font-weight: bold; }
+.sub { display: block; color: #8a90a0; font-size: 26px; margin: 8px 0 24px; }
+.sec { display: block; color: #7fb1ff; font-size: 28px; font-weight: bold; margin: 30px 0 12px; }
+.scores-box { background: #1e2330; border-radius: 16px; padding: 20px; margin-bottom: 10px; }
+.score-line { display: block; color: #ccc; font-size: 24px; margin: 6px 0; }
+.score-line.total { color: #ffd88a; font-size: 30px; font-weight: bold; }
+.award-row { margin-bottom: 14px; }
+.award-label { display: block; color: #8a90a0; font-size: 24px; margin-bottom: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { min-width: 64px; height: 56px; border-radius: 10px; background: #262b38; color: #aaa; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.chip.picked { background: #ffd88a; color: #1b1f2a; font-weight: bold; }
+.violation-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.v-seat { color: #7fb1ff; width: 80px; font-size: 26px; }
+.btn.primary { background: #ffd88a !important; color: #1b1f2a !important; border: none !important; margin-top: 30px; }
+.btn.ghost { background: transparent !important; color: #8a90a0 !important; border: 1px solid #444 !important; margin-top: 16px; }
+.btn.tiny { display: inline-block; padding: 0 20px; font-size: 22px; background: #3a2a2a !important; color: #ff8a8a !important; }
+.alive-note { display: block; color: #556; font-size: 22px; margin-top: 30px; }

@@ -1,0 +1,14 @@
+.page { padding: 30px; min-height: 100vh; background: #1b1f2a; }
+.title { display: block; font-size: 38px; color: #ffd88a; font-weight: bold; margin-bottom: 16px; }
+.sub { display: block; color: #8a90a0; font-size: 26px; margin-bottom: 24px; }
+.seat-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px; }
+.seat-row { display: flex; align-items: center; gap: 20px; background: #262b38; border-radius: 12px; padding: 18px 24px; }
+.reveal-row:active { background: #2e3444; }
+.seat-no { color: #7fb1ff; width: 90px; font-size: 28px; }
+.seat-input { flex: 1; color: #eee; font-size: 28px; }
+.seat-name { flex: 1; color: #ccc; font-size: 26px; }
+.role-show { color: #ff9a76; font-size: 28px; font-weight: bold; }
+.role-hidden { color: #556; font-size: 26px; }
+.btn { margin-top: 20px; }
+.btn.primary { background: #ffd88a !important; color: #1b1f2a !important; border: none !important; }
+.btn.ghost { background: transparent !important; color: #8a90a0 !important; border: 1px solid #444 !important; }
