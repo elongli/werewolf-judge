@@ -76,7 +76,8 @@ export function resolveExile(
     (x) => x.alive && x.seat !== seat && ROLES[x.role].camp === 'wolf',
   );
   if (p.role === 'bloodMoon' && !otherWolvesAlive) {
-    return { result: { ...base, exiled: null }, players }; // 状态机标记再入夜
+    // 不出局，由状态机据 bloodMoonReprieved 标记再入夜
+    return { result: { ...base, exiled: null, bloodMoonReprieved: seat }, players };
   }
 
   // 正常放逐出局

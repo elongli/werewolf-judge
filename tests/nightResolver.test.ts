@@ -140,4 +140,88 @@ describe('resolveNight 冲突规则', () => {
     expect(r.result.deaths.find((d) => d.seat === 9)).toBeTruthy()
     expect(r.result.goodMistakes.join()).toContain('同刀同毒')
   })
+
+  it('血月使徒：普通夜晚不会自行死亡（无 pending 不触发再入夜）', () => {
+    const ps = players({
+      1: 'bloodMoon', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'demonHunter', 8: 'idiot',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    const r = resolveNight(B_BLOOD, ps, [
+      act(1, 'werewolf', 1, 'kill', [9]),
+    ], 1)
+    expect(r.result.deaths.map((d) => d.seat)).toEqual([9])
+    expect(r.players.find((p) => p.seat === 1)?.alive).toBe(true)
+  })
+
+  it('血月再入夜（pending 命中）：与当夜刀目标一同出局', () => {
+    const ps = players({
+      1: 'bloodMoon', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'demonHunter', 8: 'idiot',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    // 其余狼已出局，血月是最后狼：第 1 天被放逐获豁免，第 2 夜再入夜
+    for (const s of [2, 3, 4]) {
+      const p = ps.find((x) => x.seat === s)!
+      p.alive = false; p.deathCause = 'exile'; p.deathAt = { day: 1 }
+    }
+    const r = resolveNight(B_BLOOD, ps, [
+      act(2, 'werewolf', 1, 'kill', [9]),
+    ], 2, { bloodMoonPending: { night: 2, seat: 1 } })
+    expect(r.result.deaths.find((d) => d.seat === 1)?.cause).toBe('bloodMoon')
+    // 刀目标按普通狼刀死亡；若被守/救，第 9 段仍会强制其同死
+    expect(r.result.deaths.find((d) => d.seat === 9)?.cause).toBe('wolf')
+  })
+
+  it('血月再入夜：刀目标被女巫救起也仍同死', () => {
+    const ps = players({
+      1: 'bloodMoon', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'demonHunter', 8: 'idiot',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    for (const s of [2, 3, 4]) {
+      const p = ps.find((x) => x.seat === s)!
+      p.alive = false; p.deathCause = 'exile'; p.deathAt = { day: 1 }
+    }
+    const r = resolveNight(B_BLOOD, ps, [
+      act(2, 'werewolf', 1, 'kill', [9]),
+      act(2, 'witch', 6, 'save', [9]),
+    ], 2, { bloodMoonPending: { night: 2, seat: 1 } })
+    expect(r.result.deaths.find((d) => d.seat === 1)?.cause).toBe('bloodMoon')
+    expect(r.result.deaths.find((d) => d.seat === 9)?.cause).toBe('bloodMoon')
+  })
+
+  it('血月 pending 夜序不符 → 不触发', () => {
+    const ps = players({
+      1: 'bloodMoon', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'demonHunter', 8: 'idiot',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    const r = resolveNight(B_BLOOD, ps, [
+      act(2, 'werewolf', 1, 'kill', [9]),
+    ], 2, { bloodMoonPending: { night: 3, seat: 1 } })
+    expect(r.result.deaths.find((d) => d.seat === 1)).toBeUndefined()
+    expect(r.players.find((p) => p.seat === 1)?.alive).toBe(true)
+  })
+
+  it('女巫与机械狼（学得毒药）同夜用毒 → 两个目标均死亡', () => {
+    const ps = players({
+      1: 'mechWolf', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'hunter', 8: 'idiot',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    const mech = ps.find((p) => p.seat === 1)!
+    mech.mech = {
+      learned: { targetSeat: 6, night: 1, skill: 'poison' as MechSkill },
+      poisonUsed: false, doubleKillUsed: false, hasKnifeRight: false,
+    }
+    const r = resolveNight(B_MECH, ps, [
+      act(2, 'witch', 6, 'poison', [9]),
+      act(2, 'mechWolf', 1, 'poison', [10]),
+    ], 2)
+    expect(r.result.deaths.find((d) => d.seat === 9)?.cause).toBe('poison')
+    expect(r.result.deaths.find((d) => d.seat === 10)?.cause).toBe('poison')
+    expect(r.players.find((p) => p.seat === 6)?.potions?.poisonUsed).toBe(true)
+    expect(r.players.find((p) => p.seat === 1)?.mech?.poisonUsed).toBe(true)
+  })
 })

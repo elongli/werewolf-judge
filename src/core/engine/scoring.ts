@@ -84,16 +84,18 @@ export function computeScores(board: BoardConfig, state: GameState, extra: Score
           const ex = bySeat(d1.exiled!);
           if (ex && campOf(ex) === 'wolf') push(p.seat, 'day1WolfOut', BEHAVIOR_SCORES.seerDay1WolfOut, '第一天有狼人被放逐');
         }
-        // 无有效验人 −0.5（可验对象查尽不扣）
+        // 无有效验人 −0.5（死亡后不再扣；可验对象查尽不扣）
         const checks = myActs.filter((a) => a.kind === 'checkCamp' || a.kind === 'checkIdentity');
-        const missed = state.nightResults.length - checks.length;
-        if (missed > 0) {
-          const lastCheck = checks.length ? Math.max(...checks.map((c) => c.night)) : 0;
-          for (let n = Math.max(1, lastCheck + 1); n <= state.nightResults.length; n++) {
-            const aliveThen = state.players.filter((x) => x.seat !== p.seat);
-            if (aliveThen.length > 0) {
-              push(p.seat, 'noCheck', BEHAVIOR_SCORES.seerNoCheckPenalty, `第${n}夜无有效验人`);
-            }
+        const checkedNights = new Set(checks.map((c) => c.night));
+        // 查验者存活到第几夜：当夜被杀者查验时点仍存活；第 d 天被放逐者第 d 夜仍存活
+        let lastAliveNight = state.nightResults.length;
+        if (p.deathAt?.night !== undefined) lastAliveNight = p.deathAt.night;
+        else if (p.deathAt?.day !== undefined) lastAliveNight = p.deathAt.day;
+        for (let n = 1; n <= Math.min(lastAliveNight, state.nightResults.length); n++) {
+          if (checkedNights.has(n)) continue;
+          const others = state.players.filter((x) => x.seat !== p.seat && aliveAtNight(x, n));
+          if (others.length > 0) {
+            push(p.seat, 'noCheck', BEHAVIOR_SCORES.seerNoCheckPenalty, `第${n}夜无有效验人`);
           }
         }
         break;
@@ -101,7 +103,8 @@ export function computeScores(board: BoardConfig, state: GameState, extra: Score
       case 'mathematician': {
         if (p.shieldNight) push(p.seat, 'mathShield', BEHAVIOR_SCORES.mathShield, '激活护盾效果');
         const checks = myActs.filter((a) => a.kind === 'mathCheck').length;
-        if (checks === 0 && state.nightResults.length > 1) {
+        // 第二夜起才有技能行动；第一夜即死亡的不扣
+        if (checks === 0 && state.nightResults.length > 1 && aliveAtNight(p, 2)) {
           push(p.seat, 'noCheck', BEHAVIOR_SCORES.mathNoCheckPenalty, '无有效验人');
         }
         break;
@@ -328,6 +331,14 @@ export function computeScores(board: BoardConfig, state: GameState, extra: Score
   }
 
   return recs;
+}
+
+/** 玩家在第 n 夜查验时点是否存活（当夜被杀者查验时仍存活；第 d 天被放逐者第 d 夜仍存活） */
+function aliveAtNight(x: Player, n: number): boolean {
+  if (x.alive) return true;
+  if (x.deathAt?.night !== undefined) return x.deathAt.night >= n;
+  if (x.deathAt?.day !== undefined) return x.deathAt.day >= n;
+  return true; // 无死亡信息（如翻牌白痴）按在场处理
 }
 
 function applyVoteScore(

@@ -177,6 +177,8 @@ export interface DayResult {
   chainDeaths: DeathRecord[];
   /** 是否平票进入 PK */
   tie: boolean;
+  /** 血月使徒作为最后狼被放逐获豁免（不出局，再入夜）；值为其座位 */
+  bloodMoonReprieved?: number;
 }
 
 // ---------- 积分 ----------

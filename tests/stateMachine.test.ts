@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { GameMachine } from '../src/core/engine/stateMachine'
-import { B_SEER, act, players } from './helpers'
+import { B_BLOOD, B_SEER, act, players } from './helpers'
 import type { VoteRecord } from '../src/core/types'
 
 function fullPlayers() {
@@ -103,5 +103,72 @@ describe('GameMachine 完整一局（预女猎白）', () => {
     expect(m2).not.toBeNull()
     expect(m2!.state.id).toBe(m.state.id)
     expect(m2!.state.players).toHaveLength(12)
+  })
+})
+
+describe('GameMachine 血月使徒再入夜（血月猎魔人版型）', () => {
+  function bloodPlayers() {
+    return players({
+      1: 'bloodMoon', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'demonHunter', 8: 'idiot',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+  }
+
+  /** 白天流程：竞选(仅第1天)→发言→投票放逐 target */
+  function exileDay(m: GameMachine, day: number, target: number) {
+    m.confirmDawn()
+    if (day === 1) {
+      m.setSheriff(5)
+      m.nextStage() // sheriff → speech
+    }
+    m.nextStage() // speech → vote
+    const alive = m.state.players.filter((p) => p.alive).map((p) => p.seat)
+    // 狼队互保投 5，其余好人全投 target
+    m.recordVotes(alive.map((s) => vote(day, s, s <= 4 && s !== target ? 5 : target)))
+    return m.confirmVote()
+  }
+
+  it('最后狼为血月：放逐豁免 → 次夜与刀目标同死', () => {
+    const m = new GameMachine(B_BLOOD.id)
+    m.start()
+    m.assignPlayers(bloodPlayers())
+
+    // 夜1：刀 9；白天放逐狼 2
+    m.recordNightAction(act(1, 'werewolf', 1, 'kill', [9]))
+    m.finishNight()
+    exileDay(m, 1, 2)
+    expect(m.state.dayResults[0].exiled).toBe(2)
+    m.nextStage() // 遗言 → 夜2
+
+    // 夜2：刀 10；白天放逐狼 3
+    m.recordNightAction(act(2, 'werewolf', 1, 'kill', [10]))
+    m.finishNight()
+    exileDay(m, 2, 3)
+    m.nextStage()
+
+    // 夜3：刀 11；白天放逐狼 4
+    m.recordNightAction(act(3, 'werewolf', 1, 'kill', [11]))
+    m.finishNight()
+    exileDay(m, 3, 4)
+    m.nextStage()
+
+    // 夜4：刀 8（留 12 号平民，避免天亮时屠边直接判负）；白天放逐血月 1（最后狼）→ 豁免不出局
+    m.recordNightAction(act(4, 'werewolf', 1, 'kill', [8]))
+    m.finishNight()
+    const dr4 = exileDay(m, 4, 1)
+    expect(dr4.exiled).toBeNull()
+    expect(dr4.bloodMoonReprieved).toBe(1)
+    expect(m.state.players.find((p) => p.seat === 1)?.alive).toBe(true)
+    expect(m.state.bloodMoonPending).toEqual({ night: 5, seat: 1 })
+    expect(m.state.stage).toEqual({ phase: 'night', night: 5, step: 0 })
+
+    // 夜5：血月刀 6 → 结算时血月与 6 号同死（6 号死因为狼刀）
+    m.recordNightAction(act(5, 'werewolf', 1, 'kill', [6]))
+    const r5 = m.finishNight()
+    expect(r5.deaths.find((d) => d.seat === 1)?.cause).toBe('bloodMoon')
+    expect(r5.deaths.find((d) => d.seat === 6)?.cause).toBe('wolf')
+    expect(m.state.bloodMoonPending).toBeUndefined() // 只生效一夜
+    expect(m.state.players.find((p) => p.seat === 1)?.alive).toBe(false)
   })
 })

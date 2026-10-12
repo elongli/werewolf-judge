@@ -36,7 +36,7 @@ export function resolveNight(
   playersIn: Player[],
   actions: NightAction[],
   night: number,
-  opts?: { godsSealedNight?: number },
+  opts?: { godsSealedNight?: number; bloodMoonPending?: { night: number; seat: number } },
 ): NightResolution {
   const players = playersIn.map((p) => ({ ...p }));
   const bySeat = (s: number) => players.find((p) => p.seat === s);
@@ -51,7 +51,9 @@ export function resolveNight(
   const guardA = act(['guard'])[0];
   const dreamA = act(['dream'])[0];
   const saveA = act(['save'])[0];
-  const poisonA = act(['poison'])[0];
+  // 女巫毒与机械狼学得毒可能同夜并存，须按行动者分别取用
+  const witchPoisonA = act(['poison']).find((a) => a.role === 'witch');
+  const mechPoisonA = act(['poison']).find((a) => a.role === 'mechWolf');
   const killA = act(['kill'])[0];
   const doubleKillA = act(['doubleKill'])[0];
   const huntA = act(['hunt'])[0];
@@ -120,14 +122,13 @@ export function resolveNight(
     savedSeat = saveA.targets[0];
     if (witchP?.potions) witchP.potions.saveUsed = true;
   }
-  if (!voided(poisonA) && poisonA.targets.length) {
-    poisonSeat = poisonA.targets[0];
+  if (witchPoisonA && !voided(witchPoisonA) && witchPoisonA.targets.length) {
+    poisonSeat = witchPoisonA.targets[0];
   }
 
   // 机械狼学得毒药
   const mechP = players.find((p) => p.mech && p.mech.learned !== false);
   let mechPoisonSeat: number | undefined;
-  const mechPoisonA = poisonA && poisonA.role === 'mechWolf' ? poisonA : undefined;
   if (!voided(mechPoisonA) && mechPoisonA?.targets.length) {
     mechPoisonSeat = mechPoisonA.targets[0];
   }
@@ -232,11 +233,12 @@ export function resolveNight(
     die(dreamSeat, 'dream');
     result.goodMistakes.push(`摄梦人出局连带梦亡(${dreamSeat}号)`);
   }
-  // 9. 血月使徒再入夜结算（放逐不死后与其当夜击杀目标一同出局）
-  const bloodP = players.find((p) => p.role === 'bloodMoon');
-  if (bloodP && !bloodP.alive === false) {
-    const pending = bloodP && knifeAffectsBloodMoon(playersIn, night);
-    if (pending && bloodP.alive) {
+  // 9. 血月使徒再入夜结算：仅当状态机标记了本夜 pending（最后狼被放逐豁免后的下一夜），
+  //    血月与其当夜击杀目标一同出局；其余夜晚不触发
+  const pending = opts?.bloodMoonPending;
+  if (pending && pending.night === night) {
+    const bloodP = players.find((p) => p.role === 'bloodMoon' && p.alive);
+    if (bloodP) {
       die(bloodP.seat, 'bloodMoon');
       if (knifeSeat !== undefined) die(knifeSeat, 'bloodMoon');
     }
@@ -312,12 +314,6 @@ function prevDreamTarget(playersIn: Player[], _actions: NightAction[]): number |
   // 本函数返回该值。
   const dw = playersIn.find((p) => p.role === 'dreamWeaver');
   return dw?.lastDreamTarget;
-}
-
-/** 血月使徒再入夜标记（stateMachine 在放逐阶段设置 bloodMoonPending） */
-function knifeAffectsBloodMoon(playersIn: Player[], _night: number): boolean {
-  // M1 简化：由 bloodMoonPending 夜序判断；pending 夜 = 下一个 night
-  return playersIn.some((p) => p.role === 'bloodMoon' && p.alive && p.deathAt === undefined);
 }
 
 /** 学习结算：机械狼 learn 行动 → 更新 mech 状态（在学习当晚调用） */

@@ -135,7 +135,9 @@ export class GameMachine {
     }
 
     // 血月使徒再入夜：上一日被放逐未死的血月 + 其当夜刀目标同死（在 resolver 内按存活与行动处理）
-    const res = resolveNight(board, players, actions, night);
+    const res = resolveNight(board, players, actions, night, {
+      bloodMoonPending: this._state.bloodMoonPending,
+    });
     const result = res.result;
     players = res.players;
 
@@ -144,6 +146,7 @@ export class GameMachine {
       players,
       nightResults: [...this._state.nightResults, result],
       stage: { phase: 'dawn', night },
+      bloodMoonPending: undefined, // pending 只生效一夜，结算后清除
     };
     this.touch();
     return result;
@@ -198,16 +201,21 @@ export class GameMachine {
     const exiledSeats = [...this._state.exiledSeats];
     if (result.exiled !== null && !exiledSeats.includes(result.exiled)) exiledSeats.push(result.exiled);
 
+    // 血月使徒作为最后狼被放逐 → 豁免出局，标记下一夜再入夜同死
+    const bloodMoonPending = result.bloodMoonReprieved !== undefined
+      ? { night: day + 1, seat: result.bloodMoonReprieved }
+      : this._state.bloodMoonPending;
+
     // 平票 → PK 轮（仅第 1 轮平票进 PK）
     if (result.tie && round === 1) {
-      this._state = { ...this._state, players: nextPlayers, dayResults, exiledSeats, stage: { phase: 'vote', day, round: 2 } };
+      this._state = { ...this._state, players: nextPlayers, dayResults, exiledSeats, bloodMoonPending, stage: { phase: 'vote', day, round: 2 } };
       this.touch();
       return result;
     }
 
     const win = evaluateWin(nextPlayers);
     if (win) {
-      this._state = { ...this._state, players: nextPlayers, dayResults, exiledSeats, stage: { phase: 'settle' }, winner: win.winner, winReason: win.reason };
+      this._state = { ...this._state, players: nextPlayers, dayResults, exiledSeats, bloodMoonPending, stage: { phase: 'settle' }, winner: win.winner, winReason: win.reason };
       this.touch();
       return result;
     }
@@ -216,14 +224,14 @@ export class GameMachine {
     const exiledP = result.exiled !== null ? nextPlayers.find((p) => p.seat === result.exiled) : undefined;
     const hasLastWords = exiledP && exiledP.deathCause === 'exile';
     if (result.exiled !== null && hasLastWords) {
-      this._state = { ...this._state, players: nextPlayers, dayResults, exiledSeats, stage: { phase: 'lastWords', day } };
+      this._state = { ...this._state, players: nextPlayers, dayResults, exiledSeats, bloodMoonPending, stage: { phase: 'lastWords', day } };
       this.touch();
       return result;
     }
 
-    // 无出局（平安日/平票二轮仍未决）→ 下一夜
+    // 无出局（平安日/平票二轮仍未决/血月豁免）→ 下一夜
     this._state = {
-      ...this._state, players: nextPlayers, dayResults, exiledSeats,
+      ...this._state, players: nextPlayers, dayResults, exiledSeats, bloodMoonPending,
       stage: { phase: 'night', night: day + 1, step: 0 },
     };
     this.touch();

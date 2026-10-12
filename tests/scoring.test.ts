@@ -129,4 +129,36 @@ describe('scoring 积分引擎', () => {
     const totals = computeTotals(recs)
     expect(totals.get(9)).toBeDefined()
   })
+
+  it('预言家中途死亡：死亡夜之后不再扣"无有效验人"', () => {
+    const ps = players(roles)
+    const seer = ps.find((p) => p.seat === 5)!
+    seer.alive = false; seer.deathCause = 'wolf'; seer.deathAt = { night: 2 }
+    const s = makeState(B_SEER, {
+      players: ps,
+      winner: 'wolf',
+      nightActions: [
+        { night: 1, role: 'seer', actorSeat: 5, kind: 'checkCamp', targets: [1] },
+        { night: 2, role: 'seer', actorSeat: 5, kind: 'checkCamp', targets: [2] },
+      ],
+      nightResults: [night(1, []), night(2, [{ seat: 5, cause: 'wolf' }]), night(3, []), night(4, [])],
+    })
+    const recs = computeScores(B_SEER, s).filter((r) => r.seat === 5 && r.ruleId === 'noCheck')
+    expect(recs).toHaveLength(0)
+  })
+
+  it('预言家存活但漏验某夜：仅扣漏验夜', () => {
+    const s = state({
+      nightActions: [
+        { night: 1, role: 'seer', actorSeat: 5, kind: 'checkCamp', targets: [1] },
+        { night: 2, role: 'seer', actorSeat: 5, kind: 'checkCamp', targets: [2] },
+        { night: 4, role: 'seer', actorSeat: 5, kind: 'checkCamp', targets: [3] },
+      ],
+      nightResults: [night(1, []), night(2, []), night(3, []), night(4, [])],
+    })
+    const recs = computeScores(B_SEER, s).filter((r) => r.seat === 5 && r.ruleId === 'noCheck')
+    expect(recs).toHaveLength(1)
+    expect(recs[0].reason).toContain('第3夜')
+    expect(recs[0].value).toBe(-0.5)
+  })
 })
