@@ -221,6 +221,8 @@ export interface GameState {
   exiledSeats: number[];
   /** 血月使徒再入夜标记（最后狼被放逐不直接出局） */
   bloodMoonPending?: { night: number; seat: number };
+  /** 血月使徒自爆封印的神职技能夜序（该夜神职行动全部无效） */
+  godsSealedNight?: number;
   winner?: 'wolf' | 'good';
   winReason?: string;
   createdAt: number;

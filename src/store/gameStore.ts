@@ -23,6 +23,12 @@ interface GameStoreState {
   recordVotes(votes: VoteRecord[]): void;
   confirmVote(): void;
   setSheriff(seat: number | null, lost?: boolean): void;
+  /** 骑士翻牌决斗（发言/投票阶段） */
+  knightDuel(knightSeat: number, targetSeat: number): void;
+  /** 狼人白天自爆（血月自爆封次夜神技） */
+  selfExplode(seat: number): void;
+  /** 警徽移交/撕毁（警长出局后） */
+  transferSheriff(to: number | null): void;
   /** 阶段推进（sheriff→speech、lastWords→下一夜/结算等非结算性推进） */
   nextStage(): void;
   back(): boolean;
@@ -123,6 +129,27 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const m = get().machine;
     if (!m) return;
     m.setSheriff(seat, lost);
+    commit(m);
+  },
+
+  knightDuel(knightSeat, targetSeat) {
+    const m = get().machine;
+    if (!m) return;
+    m.knightDuel(knightSeat, targetSeat);
+    commit(m);
+  },
+
+  selfExplode(seat) {
+    const m = get().machine;
+    if (!m) return;
+    m.selfExplode(seat);
+    commit(m);
+  },
+
+  transferSheriff(to) {
+    const m = get().machine;
+    if (!m) return;
+    m.transferSheriff(to);
     commit(m);
   },
 

@@ -225,3 +225,57 @@ describe('resolveNight 冲突规则', () => {
     expect(r.players.find((p) => p.seat === 1)?.mech?.poisonUsed).toBe(true)
   })
 })
+
+describe('resolveNight 狼美人魅惑殉情', () => {
+  const wbPlayers = () => players({
+    1: 'wolfBeauty', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+    5: 'seer', 6: 'witch', 7: 'hunter', 8: 'guard',
+    9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+  })
+
+  it('狼美人当夜被刀杀 → 魅惑目标殉情同死', () => {
+    const r = resolveNight(B_SEER, wbPlayers(), [
+      act(1, 'werewolf', 2, 'kill', [1]),
+      act(1, 'wolfBeauty', 1, 'charm', [5]),
+    ], 1)
+    expect(r.result.deaths.find((d) => d.seat === 1)?.cause).toBe('wolf')
+    expect(r.result.deaths.find((d) => d.seat === 5)?.cause).toBe('charm')
+  })
+
+  it('狼美人被毒杀 → 魅惑不发动', () => {
+    const r = resolveNight(B_SEER, wbPlayers(), [
+      act(1, 'witch', 6, 'poison', [1]),
+      act(1, 'wolfBeauty', 1, 'charm', [5]),
+    ], 1)
+    expect(r.result.deaths.find((d) => d.seat === 1)?.cause).toBe('poison')
+    expect(r.result.deaths.find((d) => d.seat === 5)).toBeUndefined()
+  })
+
+  it('狼美人被恐惧 → 魅惑无效', () => {
+    const r = resolveNight(B_SEER, wbPlayers(), [
+      act(1, 'werewolf', 2, 'fear', [1]),
+      act(1, 'werewolf', 2, 'kill', [9]),
+      act(1, 'wolfBeauty', 1, 'charm', [5]),
+    ], 1)
+    expect(r.result.feared).toContain(1)
+    expect(r.result.deaths.find((d) => d.seat === 5)).toBeUndefined()
+    expect(r.players.find((p) => p.seat === 1)?.alive).toBe(true)
+  })
+})
+
+describe('resolveNight 封技夜（血月自爆）', () => {
+  it('godsSealedNight 当夜神职行动全部无效：女巫救人失效、查验无结果', () => {
+    const ps = players({
+      1: 'werewolf', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'hunter', 8: 'guard',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    const r = resolveNight(B_SEER, ps, [
+      act(2, 'werewolf', 1, 'kill', [9]),
+      act(2, 'witch', 6, 'save', [9]),
+      act(2, 'seer', 5, 'checkCamp', [1]),
+    ], 2, { godsSealedNight: 2 })
+    expect(r.result.deaths.find((d) => d.seat === 9)?.cause).toBe('wolf') // 救无效
+    expect(r.result.checks).toHaveLength(0) // 查验无效
+  })
+})

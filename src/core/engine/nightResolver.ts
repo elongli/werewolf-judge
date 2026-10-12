@@ -243,10 +243,19 @@ export function resolveNight(
       if (knifeSeat !== undefined) die(knifeSeat, 'bloodMoon');
     }
   }
+  // 10. 狼美人殉情：当夜出局（毒杀除外）→ 当夜魅惑目标同死；被恐惧则魅惑无效不发动
+  const wbP = players.find((p) => p.role === 'wolfBeauty');
+  const charmA = act(['charm'])[0];
+  if (wbP) {
+    const wbDeath = deaths.get(wbP.seat);
+    if (wbDeath && wbDeath.cause !== 'poison' && !voided(charmA) && charmA.targets.length) {
+      die(charmA.targets[0], 'charm');
+    }
+  }
 
   // ---------- 查验结果（供法官展示） ----------
   for (const ca of checksA) {
-    if (!ca.targets.length) continue;
+    if (!ca.targets.length || voided(ca)) continue;
     if (ca.kind === 'mathCheck') {
       const [a, b] = ca.targets;
       const pa = bySeat(a); const pb = bySeat(b);

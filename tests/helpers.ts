@@ -5,6 +5,7 @@ import type { BoardConfig, GameState, NightAction, Player, RoleId } from '../src
 export const B_SEER = getBoard('sd-yvnlb')!       // 预女猎白
 export const B_BLOOD = getBoard('sd-xylmr')!     // 血月猎魔人
 export const B_MECH = getBoard('sd-jxltls')!     // 机械狼通灵师
+export const B_DREAM = getBoard('sd-lwsmr')!     // 狼王摄梦人
 
 export function players(roleBySeat: Record<number, RoleId>): Player[] {
   return Object.entries(roleBySeat).map(([seat, role]) => ({

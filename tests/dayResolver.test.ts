@@ -82,3 +82,26 @@ describe('dayResolver 放逐结算', () => {
     expect(out.find((p) => p.seat === 1)?.alive).toBe(true)
   })
 })
+
+describe('dayResolver 狼美人魅惑殉情', () => {
+  const wbPlayers = () => players({
+    1: 'wolfBeauty', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+    5: 'seer', 6: 'witch', 7: 'hunter', 8: 'guard',
+    9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+  })
+
+  it('狼美人被放逐 → 魅惑目标殉情出局', () => {
+    const votes = Array.from({ length: 12 }, (_, i) => vote(1, 1, i + 1, 1))
+    const { result, players: out } = resolveExile(B_SEER, wbPlayers(), votes, 1, 1, undefined, 5)
+    expect(result.exiled).toBe(1)
+    expect(result.chainDeaths.find((d) => d.seat === 5)?.cause).toBe('charm')
+    expect(out.find((p) => p.seat === 5)?.alive).toBe(false)
+    expect(out.find((p) => p.seat === 5)?.deathCause).toBe('charm')
+  })
+
+  it('狼美人未被放逐 → 魅惑目标不出局', () => {
+    const votes = Array.from({ length: 12 }, (_, i) => vote(1, 1, i + 1, 2))
+    const { players: out } = resolveExile(B_SEER, wbPlayers(), votes, 1, 1, undefined, 5)
+    expect(out.find((p) => p.seat === 5)?.alive).toBe(true)
+  })
+})

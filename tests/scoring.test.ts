@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { computeScores, computeTotals } from '../src/core/engine/scoring'
-import { B_SEER, makeState, players } from './helpers'
+import { B_DREAM, B_SEER, makeState, players } from './helpers'
 import type { NightResult, VoteRecord } from '../src/core/types'
 
 const roles = {
@@ -160,5 +160,64 @@ describe('scoring 积分引擎', () => {
     expect(recs).toHaveLength(1)
     expect(recs[0].reason).toContain('第3夜')
     expect(recs[0].value).toBe(-0.5)
+  })
+
+  it('摄梦人守中好人 +0.5（梦游目标为刀口且未死于狼刀）', () => {
+    const ps = players({
+      1: 'werewolf', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'hunter', 8: 'dreamWeaver',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    const s = makeState(B_DREAM, {
+      players: ps,
+      winner: 'good',
+      nightActions: [
+        { night: 1, role: 'werewolf', actorSeat: 1, kind: 'kill', targets: [9] },
+        { night: 1, role: 'witch', actorSeat: 6, kind: 'save', targets: [9] },
+        { night: 1, role: 'dreamWeaver', actorSeat: 8, kind: 'dream', targets: [9] },
+      ],
+      nightResults: [night(1, [])],
+    })
+    const recs = computeScores(B_DREAM, s).filter((r) => r.seat === 8 && r.ruleId === 'dwSaveGood')
+    expect(recs).toHaveLength(1)
+    expect(recs[0].value).toBe(0.5)
+  })
+
+  it('狼美人：被毒杀扣 0.5；魅惑带走神职加 0.5', () => {
+    // 被毒杀
+    const psA = players({
+      1: 'wolfBeauty', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'hunter', 8: 'guard',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    const wbA = psA.find((p) => p.seat === 1)!
+    wbA.alive = false; wbA.deathCause = 'poison'; wbA.deathAt = { night: 1 }
+    const sA = makeState(B_SEER, {
+      players: psA,
+      winner: 'good',
+      nightResults: [night(1, [{ seat: 1, cause: 'poison' }])],
+    })
+    const recsA = computeScores(B_SEER, sA).filter((r) => r.seat === 1)
+    expect(recsA.find((r) => r.ruleId === 'wbPoisoned')?.value).toBe(-0.5)
+    expect(recsA.find((r) => r.ruleId === 'wbCharmGod')).toBeUndefined()
+
+    // 魅惑带走神职（狼美人被刀杀，魅惑目标预言家殉情）
+    const psB = players({
+      1: 'wolfBeauty', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'hunter', 8: 'guard',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    const wbB = psB.find((p) => p.seat === 1)!
+    wbB.alive = false; wbB.deathCause = 'wolf'; wbB.deathAt = { night: 1 }
+    const seerB = psB.find((p) => p.seat === 5)!
+    seerB.alive = false; seerB.deathCause = 'charm'; seerB.deathAt = { night: 1 }
+    const sB = makeState(B_SEER, {
+      players: psB,
+      winner: 'good',
+      nightResults: [night(1, [{ seat: 1, cause: 'wolf' }, { seat: 5, cause: 'charm' }])],
+    })
+    const recsB = computeScores(B_SEER, sB).filter((r) => r.seat === 1)
+    expect(recsB.find((r) => r.ruleId === 'wbCharmGod')?.value).toBe(0.5)
+    expect(recsB.find((r) => r.ruleId === 'wbPoisoned')).toBeUndefined()
   })
 })

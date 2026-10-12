@@ -4,11 +4,12 @@
  * 回退：每次变更前压栈快照；back 弹栈恢复
  */
 import { getBoard } from '../data/boards';
+import { ROLES } from '../data/roles';
 import { deserialize, serialize } from '../persist';
 import type { NightStep } from './nightPlan';
 import { buildNightPlan } from './nightPlan';
 import { applyLearn, resolveNight } from './nightResolver';
-import { resolveExile, tallyVotes } from './dayResolver';
+import { duel, resolveExile, tallyVotes, transferBadge } from './dayResolver';
 import { evaluateWin } from './winJudge';
 import type {
   DayResult, GameState, NightAction, NightResult, Player, VoteRecord,
@@ -137,6 +138,7 @@ export class GameMachine {
     // 血月使徒再入夜：上一日被放逐未死的血月 + 其当夜刀目标同死（在 resolver 内按存活与行动处理）
     const res = resolveNight(board, players, actions, night, {
       bloodMoonPending: this._state.bloodMoonPending,
+      godsSealedNight: this._state.godsSealedNight,
     });
     const result = res.result;
     players = res.players;
@@ -147,6 +149,7 @@ export class GameMachine {
       nightResults: [...this._state.nightResults, result],
       stage: { phase: 'dawn', night },
       bloodMoonPending: undefined, // pending 只生效一夜，结算后清除
+      godsSealedNight: undefined,  // 封技夜同理
     };
     this.touch();
     return result;
@@ -193,7 +196,19 @@ export class GameMachine {
     const { day, round } = stage;
     this.push();
 
-    const { result, players } = resolveExile(board, this._state.players, this._state.votes, day, round);
+    // 狼美人魅惑目标（当夜被恐惧封锁则魅惑无效，不传）
+    let charmTarget: number | undefined;
+    const charmA = this._state.nightActions.find(
+      (a) => a.kind === 'charm' && a.night === day && a.targets.length > 0,
+    );
+    if (charmA) {
+      const feared = this._state.nightResults.find((r) => r.night === day)?.feared ?? [];
+      if (!feared.includes(charmA.actorSeat)) charmTarget = charmA.targets[0];
+    }
+
+    const { result, players } = resolveExile(
+      board, this._state.players, this._state.votes, day, round, undefined, charmTarget,
+    );
     const dayResults = [...this._state.dayResults, result];
     let nextPlayers = players;
 
@@ -236,6 +251,77 @@ export class GameMachine {
     };
     this.touch();
     return result;
+  }
+
+  /**
+   * 骑士翻牌决斗（发言/投票阶段，每局限一次——翻牌后 revealed 标记）：
+   * 决斗狼人 → 狼出局并直接入夜；决斗好人 → 骑士出局、流程留在当前阶段继续
+   */
+  knightDuel(knightSeat: number, targetSeat: number): void {
+    const stage = this._state.stage;
+    if (typeof stage !== 'object' || (stage.phase !== 'speech' && stage.phase !== 'vote')) return;
+    const knight = this._state.players.find((p) => p.seat === knightSeat);
+    if (!knight || !knight.alive || knight.role !== 'knight' || knight.revealed) return;
+    const target = this._state.players.find((p) => p.seat === targetSeat);
+    if (!target || !target.alive || targetSeat === knightSeat) return;
+    this.push();
+    const day = stage.day;
+    const { players, death } = duel(this._state.players, knightSeat, targetSeat, day);
+    if (!death) { this.back(); return; }
+    const win = evaluateWin(players);
+    const duelWolf = death.seat === targetSeat;
+    if (win) {
+      this._state = { ...this._state, players, stage: { phase: 'settle' }, winner: win.winner, winReason: win.reason };
+    } else if (duelWolf) {
+      this._state = { ...this._state, players, stage: { phase: 'night', night: day + 1, step: 0 } };
+    } else {
+      this._state = { ...this._state, players };
+    }
+    this.touch();
+  }
+
+  /** 狼人白天自爆：立即出局并跳过当天剩余流程入夜；血月使徒自爆额外封印次夜神职技能 */
+  selfExplode(seat: number): void {
+    const stage = this._state.stage;
+    if (typeof stage !== 'object' || (stage.phase !== 'speech' && stage.phase !== 'vote')) return;
+    const p = this._state.players.find((x) => x.seat === seat);
+    if (!p || !p.alive || ROLES[p.role].camp !== 'wolf') return;
+    this.push();
+    const day = stage.day;
+    const players = this._state.players.map((x) => ({ ...x }));
+    const tp = players.find((x) => x.seat === seat)!;
+    tp.alive = false;
+    tp.deathCause = 'suicide';
+    tp.deathAt = { day };
+    tp.revealed = true;
+    const godsSealedNight = p.role === 'bloodMoon' ? day + 1 : this._state.godsSealedNight;
+    const win = evaluateWin(players);
+    if (win) {
+      this._state = { ...this._state, players, godsSealedNight, stage: { phase: 'settle' }, winner: win.winner, winReason: win.reason };
+    } else {
+      this._state = { ...this._state, players, godsSealedNight, stage: { phase: 'night', night: day + 1, step: 0 } };
+    }
+    this.touch();
+  }
+
+  /** 警徽移交/撕毁：仅当现任警长已出局时由法官操作（to=null 表示撕毁） */
+  transferSheriff(to: number | null): void {
+    const cur = this._state.sheriff;
+    if (cur === undefined) return;
+    const sp = this._state.players.find((p) => p.seat === cur);
+    if (sp?.alive) return;
+    if (to !== null) {
+      const tp = this._state.players.find((p) => p.seat === to);
+      if (!tp || !tp.alive) return;
+    }
+    this.push();
+    const players = transferBadge(this._state.players, cur, to);
+    this._state = {
+      ...this._state, players,
+      sheriff: to ?? undefined,
+      sheriffLost: to === null ? true : this._state.sheriffLost,
+    };
+    this.touch();
   }
 
   setSheriff(seat: number | null, lost?: boolean): void {

@@ -172,3 +172,94 @@ describe('GameMachine 血月使徒再入夜（血月猎魔人版型）', () => {
     expect(m.state.players.find((p) => p.seat === 1)?.alive).toBe(false)
   })
 })
+
+describe('GameMachine 骑士决斗 / 狼人自爆 / 警徽移交', () => {
+  function knightPlayers() {
+    return players({
+      1: 'werewolf', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'knight', 8: 'idiot',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+  }
+
+  /** 走到第 1 天发言阶段（夜1 刀 killTarget → 天亮 → 警长 → 发言） */
+  function toSpeech(m: GameMachine, killTarget: number) {
+    m.recordNightAction(act(1, 'werewolf', 1, 'kill', [killTarget]))
+    m.finishNight()
+    m.confirmDawn()
+    m.setSheriff(5)
+    m.nextStage() // sheriff → speech
+  }
+
+  it('骑士决斗狼人 → 狼出局，直接入夜', () => {
+    const m = new GameMachine(B_SEER.id)
+    m.start()
+    m.assignPlayers(knightPlayers())
+    toSpeech(m, 9)
+    m.knightDuel(7, 1)
+    expect(m.state.players.find((p) => p.seat === 1)?.deathCause).toBe('duel')
+    expect(m.state.players.find((p) => p.seat === 7)?.revealed).toBe(true)
+    expect(m.state.stage).toEqual({ phase: 'night', night: 2, step: 0 })
+  })
+
+  it('骑士决斗好人 → 骑士出局，流程留在发言阶段', () => {
+    const m = new GameMachine(B_SEER.id)
+    m.start()
+    m.assignPlayers(knightPlayers())
+    toSpeech(m, 9)
+    m.knightDuel(7, 5)
+    expect(m.state.players.find((p) => p.seat === 7)?.deathCause).toBe('duel')
+    expect(m.state.players.find((p) => p.seat === 5)?.alive).toBe(true)
+    expect(m.state.stage).toEqual({ phase: 'speech', day: 1 })
+  })
+
+  it('狼人自爆 → 出局并直接入夜', () => {
+    const m = new GameMachine(B_SEER.id)
+    m.start()
+    m.assignPlayers(knightPlayers())
+    toSpeech(m, 9)
+    m.selfExplode(2)
+    expect(m.state.players.find((p) => p.seat === 2)?.deathCause).toBe('suicide')
+    expect(m.state.stage).toEqual({ phase: 'night', night: 2, step: 0 })
+  })
+
+  it('血月自爆 → 封印次夜神技（女巫救人失效），结算后清除', () => {
+    const m = new GameMachine(B_BLOOD.id)
+    m.start()
+    m.assignPlayers(players({
+      1: 'bloodMoon', 2: 'werewolf', 3: 'werewolf', 4: 'werewolf',
+      5: 'seer', 6: 'witch', 7: 'demonHunter', 8: 'idiot',
+      9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    }))
+    toSpeech(m, 9)
+    m.selfExplode(1)
+    expect(m.state.godsSealedNight).toBe(2)
+    expect(m.state.stage).toEqual({ phase: 'night', night: 2, step: 0 })
+    m.recordNightAction(act(2, 'witch', 6, 'save', [10]))
+    m.recordNightAction(act(2, 'werewolf', 2, 'kill', [10]))
+    const r2 = m.finishNight()
+    expect(r2.deaths.find((d) => d.seat === 10)?.cause).toBe('wolf') // 救人被封无效
+    expect(m.state.godsSealedNight).toBeUndefined()
+  })
+
+  it('警徽移交：警长存活时拒绝；出局后可移交', () => {
+    const m = new GameMachine(B_SEER.id)
+    m.start()
+    m.assignPlayers(knightPlayers())
+    toSpeech(m, 9)
+    m.transferSheriff(6) // 5 号存活 → 拒绝
+    expect(m.state.sheriff).toBe(5)
+    m.nextStage() // speech → vote
+    const alive = m.state.players.filter((p) => p.alive).map((p) => p.seat)
+    m.recordVotes(alive.map((s) => vote(1, s, s <= 4 && s !== 2 ? 5 : 2)))
+    m.confirmVote() // 放逐 2 → 遗言
+    m.nextStage() // → 夜2
+    m.recordNightAction(act(2, 'werewolf', 1, 'kill', [5]))
+    m.finishNight()
+    m.confirmDawn()
+    m.transferSheriff(6)
+    expect(m.state.sheriff).toBe(6)
+    expect(m.state.players.find((p) => p.seat === 6)?.badge).toBe(true)
+    expect(m.state.players.find((p) => p.seat === 5)?.badge).toBe(false)
+  })
+})

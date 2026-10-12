@@ -184,10 +184,33 @@ export function computeScores(board: BoardConfig, state: GameState, extra: Score
           if (death?.cause === 'dream' && campOf(t) === 'wolf' && points < pack.dreamSaveCap) {
             points += 0.5;
             push(p.seat, 'dwDreamKillWolf', BEHAVIOR_SCORES.dreamSaveGood, `梦亡狼人${t.seat}号`);
-          } else if (death?.cause === 'wolf' && isGood(t)) {
-            push(p.seat, 'dwSaveGood', 0, `守中好人${t.seat}号（本应+0.5，见TODO）`);
           } else if (death?.cause === 'dream' && isGood(t)) {
             push(p.seat, 'dwDreamKillGood', BEHAVIOR_SCORES.dreamKillGood, `梦亡好人${t.seat}号`);
+          } else if (isGood(t) && points < pack.dreamSaveCap) {
+            // 守中好人：梦游目标当夜为刀口且未死于狼刀 → 守护成功
+            const knifed = state.nightActions.some((a) => a.kind === 'kill' && a.night === d.night && a.targets.includes(t.seat));
+            if (knifed && death?.cause !== 'wolf') {
+              points += 0.5;
+              push(p.seat, 'dwSaveGood', BEHAVIOR_SCORES.dreamSaveGood, `守中好人${t.seat}号`);
+            }
+          }
+        }
+        break;
+      }
+      case 'wolfBeauty': {
+        if (p.deathCause === 'poison') {
+          push(p.seat, 'wbPoisoned', BEHAVIOR_SCORES.wolfBeautyPoisonedPenalty, '被毒杀无法发动魅惑');
+        }
+        // 魅惑殉情带走神职 +0.5（夜间/白天连锁死亡均计，取一次）
+        const carried = [
+          ...state.nightResults.flatMap((r) => r.deaths),
+          ...state.dayResults.flatMap((d) => d.chainDeaths),
+        ].filter((d) => d.cause === 'charm');
+        for (const c of carried) {
+          const t = bySeat(c.seat);
+          if (t && campOf(t) === 'god') {
+            push(p.seat, 'wbCharmGod', BEHAVIOR_SCORES.wolfBeautyCharmGod, `魅惑带走神职${t.seat}号`);
+            break;
           }
         }
         break;

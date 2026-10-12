@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { useGameStore } from '../../store/gameStore'
 import { useConfigStore } from '../../store/configStore'
 import { TimerEngine } from '../../core/timer'
+import { ROLES } from '../../core/data/roles'
 import { ANNOUNCE, tts } from '../../services/tts'
 import { playSound } from '../../services/audio'
 import type { VoteRecord } from '../../core/types'
@@ -43,6 +44,12 @@ export default function Day() {
   const round = typeof state.stage === 'object' && 'round' in state.stage ? (state.stage as { round: 1 | 2 }).round : 1
   const alive = state.players.filter((p) => p.alive)
   const lastNight = state.nightResults[state.nightResults.length - 1]
+  // 骑士可决斗（存活且未翻牌）；在场狼（自爆入口）；警长出局待移交
+  const knight = state.players.find((p) => p.role === 'knight' && p.alive && !p.revealed)
+  const wolvesAlive = alive.filter((p) => ROLES[p.role].camp === 'wolf')
+  const sheriffSeat = state.sheriff
+  const sheriffDead = sheriffSeat !== undefined && !state.sheriffLost &&
+    !state.players.find((p) => p.seat === sheriffSeat)?.alive
 
   const runTimer = (label: string, seconds: number) => {
     timerRef.current?.stop()
@@ -94,6 +101,19 @@ export default function Day() {
               {lastNight.checks.map((c, i) => <Text key={i} className='check-line'>{c.result}</Text>)}
             </View>
           )}
+          {sheriffDead && (
+            <View>
+              <Text className='sub'>警长出局，点选移交对象：</Text>
+              <View className='seat-grid'>
+                {alive.map((t) => (
+                  <View key={t.seat} className='grid-seat' onClick={() => store.transferSheriff(t.seat)}>
+                    <Text>{t.seat}</Text>
+                  </View>
+                ))}
+              </View>
+              <Button className='btn ghost' onClick={() => store.transferSheriff(null)}>撕毁警徽</Button>
+            </View>
+          )}
           <Button className='btn primary' onClick={() => { void tts.speak(ANNOUNCE.dawn(lastNight.night, lastNight.deaths.length === 0 ? '平安夜' : `${lastNight.deaths.map((d) => `${d.seat}号`).join('、')}出局`)); store.confirmDawn(); goNightOrSettle() }}>
             公布完毕，继续
           </Button>
@@ -129,6 +149,48 @@ export default function Day() {
             {' '}
             <Button className='btn small' onClick={() => runTimer('警长发言', speech.sheriffSpeech)}>警长发言 {speech.sheriffSpeech}s</Button>
           </View>
+
+          {/* 警徽移交：警长夜间出局后 */}
+          {sheriffDead && (
+            <View>
+              <Text className='sub'>警长出局，点选移交对象：</Text>
+              <View className='seat-grid'>
+                {alive.map((t) => (
+                  <View key={t.seat} className='grid-seat' onClick={() => store.transferSheriff(t.seat)}>
+                    <Text>{t.seat}</Text>
+                  </View>
+                ))}
+              </View>
+              <Button className='btn ghost' onClick={() => store.transferSheriff(null)}>撕毁警徽</Button>
+            </View>
+          )}
+
+          {/* 骑士决斗：点选决斗目标 */}
+          {knight && (
+            <View>
+              <Text className='sub'>骑士决斗（{knight.seat}号翻牌，点选目标）：</Text>
+              <View className='seat-grid'>
+                {alive.filter((t) => t.seat !== knight.seat).map((t) => (
+                  <View key={t.seat} className='grid-seat' onClick={() => { store.knightDuel(knight.seat, t.seat); goNightOrSettle() }}>
+                    <Text>{t.seat}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* 狼人自爆：点选自爆狼（血月自爆封次夜神技） */}
+          <View>
+            <Text className='sub'>狼人自爆（点选座位）：</Text>
+            <View className='seat-grid'>
+              {wolvesAlive.map((t) => (
+                <View key={t.seat} className='grid-seat' onClick={() => { store.selfExplode(t.seat); goNightOrSettle() }}>
+                  <Text>{t.seat}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
           <Text className='sub'>发言结束进入投票</Text>
           <Button className='btn primary' onClick={() => store.nextStage()}>进入投票</Button>
         </View>

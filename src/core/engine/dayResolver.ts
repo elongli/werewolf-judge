@@ -52,6 +52,8 @@ export function resolveExile(
   round: 1 | 2 = 1,
   /** 法官录入的开枪目标：shooterSeat → 目标座位（出局者/连锁者可开枪时） */
   shots?: Record<number, number | undefined>,
+  /** 狼美人当夜魅惑目标（未被恐惧时由状态机传入）；狼美人出局 → 殉情同死 */
+  charmTarget?: number,
 ): { result: DayResult; players: Player[] } {
   const players = playersIn.map((p) => ({ ...p }));
   const bySeat = (s: number) => players.find((p) => p.seat === s);
@@ -117,6 +119,20 @@ export function resolveExile(
   };
   shotChain(seat);
 
+  // 狼美人殉情：放逐/枪杀出局时，当夜魅惑目标同死（毒杀只发生在夜间，白天出局必触发）
+  if (charmTarget !== undefined) {
+    const wbDead = [seat, ...chainDeaths.map((d) => d.seat)]
+      .map((s) => bySeat(s))
+      .find((x) => x && x.role === 'wolfBeauty' && !x.alive);
+    const ct = bySeat(charmTarget);
+    if (wbDead && ct && ct.alive) {
+      ct.alive = false;
+      ct.deathCause = 'charm';
+      ct.deathAt = { day };
+      chainDeaths.push({ seat: charmTarget, cause: 'charm', day });
+    }
+  }
+
   base.chainDeaths = chainDeaths;
   return { result: base, players };
 }
@@ -129,6 +145,7 @@ export function duel(
   playersIn: Player[],
   knightSeat: number,
   targetSeat: number,
+  day?: number,
 ): { players: Player[]; death: { seat: number; cause: string } | null } {
   const players = playersIn.map((p) => ({ ...p }));
   const knight = players.find((p) => p.seat === knightSeat);
@@ -139,10 +156,12 @@ export function duel(
   if (ROLES[target.role].camp === 'wolf') {
     target.alive = false;
     target.deathCause = 'duel';
+    target.deathAt = { day };
     return { players, death: { seat: targetSeat, cause: 'duel' } };
   }
   knight.alive = false;
   knight.deathCause = 'duel';
+  knight.deathAt = { day };
   return { players, death: { seat: knightSeat, cause: 'duel' } };
 }
 
