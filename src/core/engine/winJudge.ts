@@ -14,7 +14,9 @@ export interface WinJudgeResult {
 export function campAlive(players: Player[]): { wolf: number; god: number; civ: number } {
   let wolf = 0; let god = 0; let civ = 0;
   for (const p of players) {
-    if (!p.alive) continue;
+    // 翻牌白痴（无 deathCause）未最终出局，仍计神阵营存活（M1方案 §7 规则3）
+    const revealedIdiot = p.role === 'idiot' && p.revealed && !p.deathCause;
+    if (!p.alive && !revealedIdiot) continue;
     const role = ROLES[p.role];
     if (role.camp === 'wolf') wolf++;
     else if (role.camp === 'god') god++;

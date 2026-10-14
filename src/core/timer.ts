@@ -25,6 +25,7 @@ export class TimerEngine {
   private index = 0;
   private endAt = 0;
   private pausedAt = 0;
+  private paused = false;
   private running = false;
   private finished = false;
   private ticker?: { clear: () => void };
@@ -69,6 +70,7 @@ export class TimerEngine {
 
   private beginPhase(i: number): void {
     this.index = i;
+    this.paused = false;
     this.firedChimes.clear();
     const phase = this.phases[i];
     this.endAt = this.now() + phase.seconds * 1000;
@@ -105,12 +107,15 @@ export class TimerEngine {
   pause(): void {
     if (!this.running) return;
     this.pausedAt = this.now();
+    this.paused = true;
     this.running = false;
     this.ticker?.clear();
   }
 
   resume(): void {
-    if (this.running || this.finished) return;
+    // 仅从 pause() 恢复；stop() 后或未开始时 resume 无效（避免 endAt 被错误累加）
+    if (!this.paused || this.running || this.finished) return;
+    this.paused = false;
     this.endAt += this.now() - this.pausedAt;
     this.running = true;
     this.ticker = this.setTicker(() => this.tick(), 200);

@@ -30,6 +30,7 @@ export default function Display() {
   }
 
   const stage = state.stage
+  const phase = typeof stage === 'string' ? '' : (stage as { phase: string }).phase
   const phaseText = typeof stage === 'string'
     ? '准备中'
     : (({
@@ -40,7 +41,7 @@ export default function Display() {
         vote: '放逐投票',
         lastWords: '遗言',
         settle: '结算中',
-      } as Record<string, string>)[(stage as { phase: string }).phase] ?? '对局进行中')
+      } as Record<string, string>)[phase] ?? '对局进行中')
 
   const lastResult = state.nightResults[state.nightResults.length - 1]
 
@@ -58,7 +59,8 @@ export default function Display() {
           </View>
         ))}
       </View>
-      {lastResult && lastResult.deaths.length > 0 && (
+      {/* dawn 阶段法官尚未宣布，死亡名单暂不展示 */}
+      {lastResult && lastResult.deaths.length > 0 && phase !== 'dawn' && (
         <Text className='deaths'>昨夜出局：{lastResult.deaths.map((d) => `${d.seat}号`).join('、')}</Text>
       )}
       <Text className='privacy-note'>本页面不显示身份信息</Text>

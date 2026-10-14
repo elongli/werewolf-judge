@@ -4,6 +4,35 @@ import { players } from './helpers'
 
 const ok = (r: ReturnType<typeof evaluateWin> | null): r is { winner: 'wolf' | 'good'; reason: string } => r !== null
 
+describe('campAlive 白痴翻牌口径', () => {
+  it('翻牌白痴未最终出局 → 仍计神阵营存活，不触发屠神', () => {
+    const ps = players({
+      1: 'werewolf', 2: 'seer', 3: 'witch', 4: 'hunter', 5: 'idiot',
+      6: 'civilian', 7: 'civilian', 8: 'civilian', 9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    for (const p of ps) if (['seer', 'witch', 'hunter'].includes(p.role)) p.alive = false
+    const idiot = ps.find((p) => p.role === 'idiot')!
+    idiot.alive = false // 规则口径：翻牌后存活状态为已出局
+    idiot.revealed = true
+    // 不设 deathCause：未最终出局
+    expect(campAlive(ps).god).toBe(1)
+    expect(evaluateWin(ps)).toBeNull()
+  })
+
+  it('白痴未翻牌正常死亡 → 不计神存活', () => {
+    const ps = players({
+      1: 'werewolf', 2: 'seer', 3: 'witch', 4: 'hunter', 5: 'idiot',
+      6: 'civilian', 7: 'civilian', 8: 'civilian', 9: 'civilian', 10: 'civilian', 11: 'civilian', 12: 'civilian',
+    })
+    for (const p of ps) if (['seer', 'witch', 'hunter', 'idiot'].includes(p.role)) {
+      p.alive = false
+      p.deathCause = 'wolf'
+    }
+    expect(campAlive(ps).god).toBe(0)
+    expect(ok(evaluateWin(ps)) && evaluateWin(ps)!.winner).toBe('wolf')
+  })
+})
+
 describe('evaluateWin 屠边四规则', () => {
   it('狼全灭且神民均有存活 → 好人胜', () => {
     const ps = players({

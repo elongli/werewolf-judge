@@ -1,20 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { TimerEngine } from '../src/core/timer'
 
-function manualDeps() {
-  let nowMs = 0
-  let tick: (() => void) | null = null
-  return {
-    now: () => nowMs,
-    setTicker: (cb: () => void) => {
-      tick = cb
-      return { clear: () => { tick = null } }
-    },
-    advance: (ms: number) => { nowMs += ms; tick?.() },
-    deps: undefined as never,
-  }
-}
-
 describe('TimerEngine', () => {
   it('分阶段推进并触发提示音点', () => {
     let nowMs = 0
@@ -69,5 +55,28 @@ describe('TimerEngine', () => {
     nowMs = 14000 // 续播后仅经过 6s（8000→14000），若暂停期间计时应已归零
     tick?.()
     expect(eng.remainingSec()).toBe(1)
+  })
+
+  it('stop() 后 resume() 无效；未 start 时 resume() 也无效', () => {
+    let nowMs = 0
+    let tick: (() => void) | null = null
+    const mk = () => new TimerEngine([{ label: 'X', seconds: 10 }], {}, {
+      now: () => nowMs,
+      setTicker: (cb) => { tick = cb; return { clear: () => { tick = null } } },
+    })
+    // stop 后 resume：不得错误累加 endAt
+    const a = mk()
+    a.start()
+    nowMs = 4000
+    a.stop()
+    nowMs = 60000
+    a.resume()
+    expect(a.isRunning).toBe(false)
+    // 未 start 直接 resume：不得启动计时
+    nowMs = 0
+    const b = mk()
+    b.resume()
+    expect(b.isRunning).toBe(false)
+    expect(tick).toBeNull()
   })
 })

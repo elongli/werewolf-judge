@@ -30,16 +30,26 @@ class LocalStorageAdapter implements StorageAdapter {
 const DB_NAME = 'werewolf-judge';
 const STORE = 'games';
 
+/** 单例连接：避免每次读写都 open 新连接（连接泄漏） */
+let dbPromise: Promise<IDBDatabase> | null = null;
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+  if (!dbPromise) {
+    dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    // 连接被外部关闭/升级时清缓存，下次调用重开
+    dbPromise.then((db) => {
+      db.onclose = () => { dbPromise = null; };
+      db.onversionchange = () => db.close();
+    }).catch(() => { dbPromise = null; });
+  }
+  return dbPromise;
 }
 
 class IdbStorageAdapter implements StorageAdapter {

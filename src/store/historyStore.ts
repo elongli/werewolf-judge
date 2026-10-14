@@ -61,10 +61,12 @@ export const useHistoryStore = create<HistoryStoreState>((set, get) => ({
 
   async hydrate() {
     const [h, t] = await Promise.all([configStorage.get(HISTORY_KEY), configStorage.get(RANKING_KEY)]);
-    set({
-      history: h ? (JSON.parse(h) as FinishedGame[]) : [],
-      totals: t ? (JSON.parse(t) as Record<string, number>) : {},
-    });
+    // 存储损坏时降级为空，绝不阻断启动
+    let history: FinishedGame[] = [];
+    if (h) { try { history = JSON.parse(h) as FinishedGame[]; } catch { /* 用空列表 */ } }
+    let totals: Record<string, number> = {};
+    if (t) { try { totals = JSON.parse(t) as Record<string, number>; } catch { /* 用空表 */ } }
+    set({ history, totals });
   },
 }));
 

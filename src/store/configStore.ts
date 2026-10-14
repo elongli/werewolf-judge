@@ -59,9 +59,15 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
       configStorage.get(SPEECH_KEY),
       configStorage.get(CUSTOM_BOARDS_KEY),
     ]);
-    set({
-      speech: speechRaw ? { ...DEFAULT_SPEECH, ...(JSON.parse(speechRaw) as SpeechConfig) } : { ...DEFAULT_SPEECH },
-      customBoards: boardsRaw ? (JSON.parse(boardsRaw) as BoardConfig[]) : [],
-    });
+    // 存储损坏时降级为默认值，绝不阻断启动
+    let speech = { ...DEFAULT_SPEECH };
+    if (speechRaw) {
+      try { speech = { ...speech, ...(JSON.parse(speechRaw) as SpeechConfig) }; } catch { /* 用默认值 */ }
+    }
+    let customBoards: BoardConfig[] = [];
+    if (boardsRaw) {
+      try { customBoards = JSON.parse(boardsRaw) as BoardConfig[]; } catch { /* 用空列表 */ }
+    }
+    set({ speech, customBoards });
   },
 }));

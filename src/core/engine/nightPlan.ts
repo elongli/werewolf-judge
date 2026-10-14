@@ -23,11 +23,11 @@ const WOLF_TEAM: RoleId = 'werewolf'; // 狼队共同行动批次以狼人代表
 function wolfPhases(board: BoardConfig, night: number): TimerPhase[] {
   const t = TIMING_PACKS[board.timingPack];
   const first = night === 1;
-  const secs = first ? t.wolfFirstNight : t.wolfLaterNight;
+  const seconds = first ? t.wolfFirstNight : t.wolfLaterNight;
   const chime = first ? t.wolfChimeFirst : t.wolfChimeLater;
   return [{
     label: first ? '狼人行动（首夜）' : '狼人行动',
-    seconds: secs,
+    seconds,
     chimeAt: [chime],
     chimeText: ['狼人请迅猛'],
   }];
