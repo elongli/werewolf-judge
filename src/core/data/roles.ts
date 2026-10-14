@@ -123,9 +123,6 @@ export const ROLES: Record<RoleId, Role> = {
   },
 };
 
-/** 狼队共同刀人批次（夜行动 = kill 的角色） */
-export const WOLF_KILL_ROLES: RoleId[] = ['werewolf', 'wolfKing', 'bloodMoon', 'nightmare'];
-
 /** 单独唤醒、互不见面的狼 */
 export const LONE_WOLF_ROLES: RoleId[] = ['gargoyle', 'trickWolf', 'mechWolf'];
 

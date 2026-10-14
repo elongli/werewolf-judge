@@ -117,7 +117,7 @@ export function computeScores(board: BoardConfig, state: GameState, extra: Score
           const t = bySeat(my.targets[0] ?? -1);
           if (d?.cause === 'check' && t && campOf(t) === 'wolf' && my.night >= 2 && kills < pack.pureWhiteKillCap) {
             kills += 1;
-            push(p.seat, 'pwKillWolf', BEHAVIOR_SCORES.pureWhiteBadge === 0.5 ? 0.5 : 0.5, `第${my.night}夜查验致${t.seat}号出局`);
+            push(p.seat, 'pwKillWolf', BEHAVIOR_SCORES.pureWhiteBadge, `第${my.night}夜查验致${t.seat}号出局`);
           }
         }
         if (p.deathCause === 'check') push(p.seat, 'pwKilled', BEHAVIOR_SCORES.pureWhiteKilledPenalty, '被狼巫查验出局');

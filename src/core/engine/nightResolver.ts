@@ -302,7 +302,7 @@ export function resolveNight(
       p.alive = false;
       p.deathCause = d.cause;
       p.deathAt = { night };
-      deathRecords.push({ seat, cause: d.cause, night, extra: d.extra } as DeathRecord);
+      deathRecords.push({ seat, cause: d.cause, night, extra: d.extra });
     }
   }
   result.deaths = deathRecords;

@@ -150,6 +150,8 @@ export interface DeathRecord {
   cause: string;
   night?: number;
   day?: number;
+  /** 同一座位的多重死因（如狼刀+毒同夜） */
+  extra?: string[];
 }
 
 // ---------- 夜间结算产出 ----------

@@ -94,12 +94,15 @@ export default function Night() {
     if (isLast) Taro.redirectTo({ url: '/pages/day/index' })
   }
 
-  const roleName = step.role === 'werewolf' && step.seats.length > 1 ? '狼人们' : ROLES[step.role].name
+  // 多狼共刀时播报「狼人们」
+  const announce = step.role === 'werewolf' && step.seats.length > 1
+    ? step.announce.replace('狼人', '狼人们')
+    : step.announce
 
   return (
     <View className='page night'>
       <Text className='stage-tag'>第 {night} 夜 · 步骤 {(state.stage as { step: number }).step + 1}/{steps.length}</Text>
-      <Text className='announce'>{step.announce.replace(roleName, roleName)}</Text>
+      <Text className='announce'>{announce}</Text>
       <Text className='action-desc'>{ROLES[step.role].desc}</Text>
 
       <View className='timer-box'>
